@@ -1,0 +1,17 @@
+
+import urllib 
+import json
+
+def translate_api(source,dest,keyword):
+    your_API_key="API KEY"
+    url = "https://www.googleapis.com/language/translate/v2?q="+keyword+"&target="+dest+"&format=text&source="+source+"&key="+your_API_key
+    f = urllib.urlopen(url)
+    trans=f.read()
+    pos0=trans.find('"translatedText": "') + len('"translatedText": "')
+    pos1=trans.find('"',pos0+1)
+    
+    trans = trans[pos0:pos1]
+    
+    return trans
+
+print translate_api("en","hr","blue")
