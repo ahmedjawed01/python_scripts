@@ -1,0 +1,257 @@
+# -- coding: utf-8 --
+import xmltodict
+import json
+import urllib
+
+from HTMLParser import HTMLParser
+
+class MLStripper(HTMLParser):
+    def __init__(self):
+        self.reset()
+        self.fed = []
+    def handle_data(self, d):
+        self.fed.append(d)
+    def handle_entityref(self, name):
+        self.fed.append('&%s;' % name)
+    def get_data(self):
+        return ''.join(self.fed)
+
+def html_to_text(html):
+    s = MLStripper()
+    s.feed(html)
+    return s.get_data()
+
+
+
+def get_colors(options,colors_list):
+    if options:
+        colors=options.get("COLOR",0)
+        if not colors:
+            colors=options.get("Color",0)
+        if not colors:
+            colors=options.get("color",0)
+        if not colors:
+            colors=options.get("Coulor",0)
+        
+
+        if colors:
+            for c in colors:
+                
+                
+                if c not in  colors_list:
+                    if len(c) >3:
+                        c=translate_api("en","hr",c)
+                        c=c.upper().strip()
+                        colors_list.append(c)
+
+
+def remove_duplicates(json_list):
+    col=[]
+    for c in json_list:
+        if c not in col:
+            col.append(c)
+
+
+    json_data = json.dumps(col)
+    print json_data
+
+
+def translate_api(source,dest,keyword):
+    url = "https://www.googleapis.com/language/translate/v2?q="+keyword+"&target="+dest+"&format=text&source="+source+"&key=AIzaSyCTlpL1qX8kHplM34eqisZAZS-0ng6PNcw"
+    f = urllib.urlopen(url)
+    trans=f.read()
+    pos0=trans.find('"translatedText": "') + len('"translatedText": "')
+    pos1=trans.find('"',pos0+1)
+    
+    trans = trans[pos0:pos1]
+    
+    return trans
+
+def xml_to_dict(path):
+
+    with open(path) as fd:
+        doc = xmltodict.parse(fd.read())
+        return doc 
+
+
+
+def scrap(xml,col=0,scrap_type="",translate=1,trans_desc=1) :
+    xml_dict=xml_to_dict(xml)
+
+
+    result=[]
+    if col:
+        colors_list =[]
+    for item in xml_dict["root"]["item"]:
+        
+        sku=item.get("sku",0)   
+        sku=sku+"0"
+        weight=item.get("weight",0)   
+        Price=float(item.get("Price",0))
+        Price=Price+Price*40/100
+
+        url=item.get("url",0)   
+        name=item.get("name",0)   
+        
+
+        category=item.get("category",0)   
+        media=item.get("media",0)   
+        options=item.get("options",0)   
+        category=item.get("category",0)   
+        description=item.get("description",0)   
+        description =description.replace("<br />","*#*")
+        description=html_to_text(description)
+        
+        
+        
+        if not col:
+            colors_list =[]
+        get_colors(options,colors_list)
+        if col:
+            continue
+        colors=colors_list
+
+        res={}
+       
+        if scrap_type =="Car Holder" :
+            if "CAR" not  in name.upper() or "HOLDER" not in name.upper() or "PHONE" not in name.upper():
+                continue
+        elif scrap_type =="Alcohol Tester" :
+            if "ALCOHOL" not  in name.upper() or "TESTER" not in name.upper() :
+                continue
+        elif scrap_type =="Hook Holder" :
+            if "HOOK" not  in name.upper() or "HOLDER" not in name.upper() :
+                continue
+                
+        elif scrap_type =="Car Clock" :
+            if "CAR" not  in name.upper() or "CLOCK" not in name.upper() :
+                continue
+
+        elif scrap_type =="Car Iphone Charger" :
+            if "CAR" not  in name.upper() or "IPHONE" not in name.upper() or "CHARGER" not in name.upper():
+                continue
+
+        elif scrap_type =="PC Gaming Headphone" :
+            if "PC" not  in name.upper() or "GAMING" not in name.upper() or "HEADPHONE" not in name.upper():
+                
+                continue
+
+        
+            
+        res["ref"]=sku
+        res["en_name"]=name
+        desc=""
+        en_desc=""
+        if translate:
+            name=translate_api("en","hr",name)
+        else:
+            if scrap_type =="Car Holder":
+                name=u"Držač Za Mobitele U Automobilu "+str(sku)
+            elif scrap_type =="Alcohol Tester":
+                name=u"Alkohol Tester "+str(sku)
+
+            elif scrap_type =="Hook Holder":
+                name=u"Držač Za Stvari "+str(sku)
+
+            elif scrap_type =="Car Clock":
+                name=u"Satovi Za Auto "+str(sku)
+
+            elif scrap_type =="Car Iphone Charger":
+                name=u"Punjači Za Iphone | Auto "+str(sku)
+
+            elif scrap_type =="PC Gaming Headphone":
+                name=u"Slušalice Za PC "+str(sku)
+                desc=u"Slušalice za PC odlične za igranje igrica. "
+
+        res["name"]=name
+        #description=translate_api("en","hr",description)
+        
+
+        if trans_desc:
+            for d in description.split("*#*"):
+                try:
+                    desc+=translate_api("en","hr",d) +"<br>"
+                    en_desc+=d+"<br>"
+                except:
+                    desc=""
+                    break
+            desc=desc.replace("<br><br>","<br>")
+            desc=desc.replace("\\n*","")
+            desc=desc.replace("\\","")
+            en_desc=en_desc.replace("<br><br>","<br>")
+
+        res["desc"]=desc
+        res["en_desc"]=en_desc
+        res["name"]=name
+        res["price"]=Price
+        res["quantity"]=10
+        res["images"]=media
+        res["colors"]=colors
+        res["url"]=url
+        result.append(res)
+        
+
+    if col:
+        json_data = json.dumps(colors_list)
+        print json_data
+    else:
+        json_data = json.dumps(result)
+        print json_data
+
+
+scrap_type=["" for x in range(10)]
+scrap_type[0]="Car Holder"
+scrap_type[1]="Alcohol Tester"
+scrap_type[2]="Hook Holder"
+scrap_type[3]="Car Clock"
+scrap_type[4]="Car Iphone Charger"
+scrap_type[5]="PC Gaming Headphone"
+#scrap(xml,col=0,scrap_type="",translate=1,trans_desc=1)
+
+scrap_string=scrap_type[5]
+if scrap_string=="Car Holder":
+
+    scrap("car.xml",0,scrap_type[0],0,0) 
+
+elif scrap_string=="Alcohol Tester":
+
+    scrap("car.xml",0,scrap_type[1],0,0) 
+    
+elif scrap_string=="Hook Holder":
+
+    scrap("car.xml",0,scrap_type[2],0,0) 
+
+elif scrap_string=="Car Clock":
+
+    scrap("car.xml",0,scrap_type[3],0,0) 
+
+elif scrap_string=="Car Iphone Charger":
+
+    scrap("car.xml",0,scrap_type[4],0,0) 
+
+elif scrap_string=="PC Gaming Headphone":
+
+    scrap("electronics.xml",0,scrap_type[5],0,0) 
+
+
+#remove_duplicates(["ZLATO", "SREBRO", "ZELENA", "PLAVA", "PURPURNA BOJA", "PLAVA", "SIVA", "CRNO", "PLAVA", "BIJELA", "\u017dUTA BOJA", "ROZE", "ZELENA", "CRNO", "NARAN\u010dASTA", "PLAVA", "ZELENA", "CRNO", "BIJELA", "SME\u0111", "SIVA", "CRNO", "BE\u017e", "CRNO", "SME\u0111", "SIVA", "BE\u017e", "CRNO", "SME\u0111", "SIVA", "NARAN\u010dASTA", "CRNO", "BIJELA", "CRNO", "BIJELA", "ZELENA", "CRNO", "ROZE", "\u017eUTA BOJA", "CRNO", "BIJELA", "ZELENA", "NARAN\u010dASTA", "CRNO", "PURPURNA BOJA", "LEOPARD", "CRNO", "BIJELA", "ROZE", "PLAVA", "TRANSPARENTAN", "\u017dUTA BOJA", "CRNO", "PLAVA", "CRNO", "BIJELA", "\u017dUTA BOJA", "ZELENA", "CRNO", "PLAVA", "PLAVA", "SREBRO", "BIJELA", "TOPLA BIJELA", "BIJELA", "TOPLA BIJELA", "BIJELA", "TOPLA BIJELA", "BIJELA", "TOPLA BIJELA", "BIJELA", "TOPLA BIJELA", "BIJELA", "TOPLA BIJELA", "PLAVA", "ZELENA", "BIJELA", "CRNO", "TRANSPARENTAN", "CRNO", "BIJELA", "CRNO", "SIVA", "BIJELA", "CRNO", "PLAVA", "ZELENA", "CRNO", "PLAVA", "PLAVA", "CRNO", "SREBRO", "PLAVA", "NARAN\u010dASTA", "SREBRO", "PLAVA", "NARAN\u010dASTA", "\u017dUTA BOJA", "PLAVA", "SREBRO", "CRNO", "PLAVA", "SREBRO", "CRNO", "PLAVA", "SREBRO", "CRNO", "PLAVA", "SREBRO", "PLAVA", "BIJELA", "CRNO", "ZLATAN", "SIVA", "\u017dUTA BOJA", "ZLATAN", "SREBRO", "ZLATAN", "SREBRO", "ZLATAN", "SREBRO", "BE\u017e CRNA", "BLUE BLACK", "SIVA CRNA", "CRVENA CRNA", "\u017dUTA CRNA", "CRNO", "PLAVA", "SREBRNAST", "BIJELA", "PLAVA", "ZELENA", "CRNO", "BIJELA", "PLAVA", "BIJELA"])
+
+
+
+
+
+
+
+
+"""
+sku
+weight
+Price
+url
+name
+category
+media
+options
+short_description
+description
+"""

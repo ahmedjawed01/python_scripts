@@ -1,0 +1,177 @@
+import xlrd 
+import sys 
+import cookielib
+import json 
+import requests
+import time
+
+def open_file(path) : 
+    #Open and read an Excel file 
+    book=xlrd.open_workbook(path)
+    #print number of sheets 
+    #print book.nsheets
+
+    #print sheet names
+    #print book.sheet_names()
+
+    #get the first worksheet
+    first_sheet = book.sheet_by_index(0)
+
+    
+    #print first row of first sheet
+    #print first_sheet.row_values(0)
+
+    #print number of row in sheet 
+    #print first_sheet.nrows
+    n=first_sheet.nrows
+    
+    # iterate through rows read a row by row
+
+    dub=[]
+    result=[]
+    counter=0
+    for i in range(1,n):
+        row=first_sheet.row_values(i)
+        ref = row[0]
+        if type(ref) ==float : 
+            ref=str(int(ref))
+        name=row[2]
+        try:
+            dio=name[0:15] 
+            
+        except:
+            print "continue"
+            continue
+        desc = row[3].replace("'","").replace('"',"")
+        long_desc=row[3] +row[4]
+        long_desc=long_desc.replace("'","").replace('"',"")
+        active=row[11]
+        price=row[8]
+        quantity=row[9]
+        image1=row[12]
+        image2=row[13]
+        image3=row[14]
+        category=row[6]
+        res={}
+        
+        if dio not in dub:
+            
+            if active =="Da" and  "Baterije" in category:
+                counter+=1
+                if counter ==20:
+                    break
+                res["ref"]=ref
+                res["name"]=name
+                res["desc"]=desc
+                res["long_desc"]=long_desc
+                res["name"]=name
+                res["name"]=name
+                res["price"]=price
+                res["quantity"]=quantity
+                res["image1"]=image1
+                res["image2"]=image2
+                res["image3"]=image3
+                res["category"]=category
+
+                result.append(res)
+
+        dub.append(dio)
+        
+
+    json_data = json.dumps(result)
+    print json_data 
+
+    
+import mechanize
+
+
+def store_data(data,name):
+    f=open(name,"w")
+    f.write(data)
+    f.close()
+def open_url(br,url,payload=0):
+    if payload:
+        response=br.open(url,json_data) 
+    else:
+        response=br.open(url) 
+    return br
+
+def show_forms(br) :
+    # Show the available forms
+    for f in br.forms():
+        print f
+    return br
+
+def show_source(br,store=0,name="temp123.txt"):
+    # Show the source
+    data=br.response().read()
+    
+    if store:
+        store_data(data,name)
+    else:
+        print data
+
+def define_Browser():
+    # Browser
+    br = mechanize.Browser()
+    # Cookie Jar
+    cj = cookielib.LWPCookieJar()
+    br.set_cookiejar(cj)
+
+    # Browser options
+    br.set_handle_equiv(True)
+    br.set_handle_gzip(True)
+    br.set_handle_redirect(True)
+    br.set_handle_referer(True)
+    br.set_handle_robots(False)
+
+    # Follows refresh 0 but not hangs on refresh > 0
+    br.set_handle_refresh(mechanize._http.HTTPRefreshProcessor(), max_time=1)
+
+    # Want debugging messages?
+    br.set_debug_http(True)
+    br.set_debug_redirects(True)
+    br.set_debug_responses(True)
+
+    # User-Agent (this is cheating, ok?)
+    br.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.1) Gecko/2008071615 Fedora/3.0.1-1.fc9 Firefox/3.0.1')]
+    return br       
+
+def log_in(br,url,username,password) :          
+    
+    #print url +"\n"
+    
+    response=br.open(url)
+    br.select_form(nr=0)
+    br.form['email']=username
+    br.form['passwd']=password
+    br.submit()
+    
+    return br
+    
+
+
+#data=open_file("test.xls")
+
+#print data
+#json_data = json.dumps(data)
+#print json_data 
+
+for i in range(100):
+    try:
+        print
+        print "KRENI "
+        print
+        url="http://trgomania.com/admin135pnhwef/"
+        username='blaz1988@gmail.com'
+        password='19881989'
+        br=define_Browser()
+        br=log_in(br,url,username,password)
+        url="http://trgomania.com/admin135pnhwef/index.php?controller=AdminModules&token=bd9fdca12312fd32c6eaf994c03b0d13&configure=exportxls&tab_module=others&module_name=exportxls"
+        br=open_url(br,url)
+        show_source(br)
+        br.close()
+        time.sleep(180)
+    except:
+        br.close()
+

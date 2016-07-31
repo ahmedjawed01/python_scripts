@@ -3,8 +3,7 @@ import urllib
 import json
 
 def translate_api(source,dest,keyword):
-    your_API_key="API KEY"
-    url = "https://www.googleapis.com/language/translate/v2?q="+keyword+"&target="+dest+"&format=text&source="+source+"&key="+your_API_key
+    url = "https://www.googleapis.com/language/translate/v2?q="+keyword+"&target="+dest+"&format=text&source="+source+"&key=AIzaSyCTlpL1qX8kHplM34eqisZAZS-0ng6PNcw"
     f = urllib.urlopen(url)
     trans=f.read()
     pos0=trans.find('"translatedText": "') + len('"translatedText": "')
